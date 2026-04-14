@@ -6,12 +6,13 @@ from app.services.translation.base import BaseTranslationService
 
 logger = logging.getLogger(__name__)
 
+from app.core.config import settings
 from app.services.translation.persistent_cache import translation_cache
 
 class FreeTranslationService(BaseTranslationService):
     def __init__(self):
         # On crée un pool de threads pour traiter plusieurs traductions en parallèle
-        self.executor = ThreadPoolExecutor(max_workers=10)
+        self.executor = ThreadPoolExecutor(max_workers=settings.FREE_TRANSLATION_MAX_WORKERS)
 
     async def translate(self, text: str) -> str:
         if not text.strip():

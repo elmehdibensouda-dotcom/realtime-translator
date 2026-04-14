@@ -23,8 +23,8 @@ logger = logging.getLogger(__name__)
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     logger.info("🚀 RealtimeTranslator backend starting...")
-    logger.info(f"   ASR provider  : {settings.ASR_PROVIDER}")
-    logger.info(f"   Translation   : {settings.TRANSLATION_PROVIDER}")
+    logger.info("   Mode          : FREE (Web Speech API + Google)")
+    logger.info(f"   Max workers   : {settings.FREE_TRANSLATION_MAX_WORKERS}")
     logger.info(f"   Max sessions  : {settings.MAX_CONCURRENT_SESSIONS}")
     yield
     logger.info("🛑 Backend shutting down...")
