@@ -11,3 +11,6 @@ build/
 .next/
 .vscode/
 .idea/
+*.db
+*.db-shm
+*.db-wal
