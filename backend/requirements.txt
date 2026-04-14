@@ -16,6 +16,7 @@ assemblyai==0.34.0
 
 # ── Translation ───────────────────────────────────────────────────────────────
 deepl==1.20.0
+deep-translator==1.11.4
 # google-cloud-translate==3.18.0 # uncomment for Google Translate fallback
 
 # ── HTTP ──────────────────────────────────────────────────────────────────────
