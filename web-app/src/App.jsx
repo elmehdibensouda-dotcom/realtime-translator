@@ -1,6 +1,6 @@
-import React, { useState, useEffect, useRef, useCallback } from 'react';
+import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Mic, Square, Languages, AlertCircle, Activity, Zap, RefreshCw } from 'lucide-react';
+import { Mic, Square, Languages, AlertCircle, Activity, Zap, RefreshCw, Volume2, Settings2, Trash2, Maximize2, ChevronDown } from 'lucide-react';
 
 const WS_URL = import.meta.env.VITE_WS_URL || 'ws://localhost:8000/ws/translate';
 const AUTH_URL = import.meta.env.VITE_AUTH_URL || 'http://localhost:8000/auth/token';
@@ -11,7 +11,8 @@ export default function App() {
   const [liveEn, setLiveEn] = useState('');
   const [liveFr, setLiveFr] = useState('');
   const [error, setError] = useState(null);
-  const [fontSize, setFontSize] = useState(52);
+  const [fontSize, setFontSize] = useState(48);
+  const [isAutoScroll, setIsAutoScroll] = useState(true);
   
   const wsRef = useRef(null);
   const recognitionRef = useRef(null);
@@ -21,10 +22,13 @@ export default function App() {
   const retryCount = useRef(0);
   const maxRetries = 5;
 
-  // Auto-scroll
+  // Optimized smooth scroll
   useEffect(() => {
-    if (scrollRef.current) scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
-  }, [segments, liveEn]);
+    if (isAutoScroll && scrollRef.current) {
+      const target = scrollRef.current;
+      target.scrollTo({ top: target.scrollHeight, behavior: 'smooth' });
+    }
+  }, [segments, liveEn, isAutoScroll]);
 
   const requestTranslation = useCallback((text, is_final) => {
     const ws = wsRef.current;
@@ -33,7 +37,8 @@ export default function App() {
     const wordCount = text.split(' ').length;
     const lastWordCount = lastTranslatedText.current.split(' ').length;
     
-    if (!is_final && (wordCount - lastWordCount) < 4) return;
+    // Throttle interim updates to avoid flickering, but allow final always
+    if (!is_final && (wordCount - lastWordCount) < 3) return;
 
     lastTranslatedText.current = text;
     const seqId = ++lastSeqRef.current;
@@ -50,8 +55,9 @@ export default function App() {
       const authRes = await fetch(AUTH_URL, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ client_id: 'prod-web-' + Math.random().toString(36).substring(7) }),
+        body: JSON.stringify({ client_id: 'turbo-web-' + Math.random().toString(36).substring(7) }),
       });
+      if (!authRes.ok) throw new Error("Auth failed");
       const { access_token } = await authRes.json();
 
       const ws = new WebSocket(`${WS_URL}?token=${access_token}`);
@@ -59,10 +65,11 @@ export default function App() {
 
       ws.onmessage = (e) => {
         const data = JSON.parse(e.data);
+        // Ignore late seq results if a newer one already arrived for partials
         if (data.seq_id && data.seq_id < lastSeqRef.current && data.type !== 'final') return;
 
         if (data.type === 'final') {
-          setSegments(prev => [...prev, { en: data.transcript_en, fr: data.translation_fr, id: Date.now() }].slice(-30));
+          setSegments(prev => [...prev, { en: data.transcript_en, fr: data.translation_fr, id: Date.now() }].slice(-50));
           setLiveEn('');
           setLiveFr('');
           lastTranslatedText.current = '';
@@ -85,12 +92,10 @@ export default function App() {
         }
       };
 
-      ws.onerror = () => {
-         // L'erreur sera gérée par onclose
-      };
+      ws.onerror = () => { /* Handled by onclose */ };
 
     } catch (err) {
-      setError("Erreur de connexion au serveur.");
+      setError("Server connection failed. Check if backend is running.");
       setStatus('error');
     }
   }, [status]);
@@ -99,10 +104,10 @@ export default function App() {
     if (retryCount.current < maxRetries) {
       setStatus('reconnecting');
       retryCount.current++;
-      setTimeout(connectWS, 2000 * retryCount.current); // Backoff exponentiel
+      setTimeout(connectWS, 2000 * retryCount.current);
     } else {
       setStatus('error');
-      setError("Connexion perdue. Merci de rafraîchir la page.");
+      setError("Connection lost. Please refresh.");
     }
   };
 
@@ -113,6 +118,10 @@ export default function App() {
       await connectWS();
 
       const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+      if (!SpeechRecognition) {
+        throw new Error("Your browser does not support Speech Recognition.");
+      }
+
       const recognition = new SpeechRecognition();
       recognition.lang = 'en-US';
       recognition.continuous = true;
@@ -133,6 +142,11 @@ export default function App() {
           setLiveEn(interim);
           requestTranslation(interim, false);
         }
+      };
+
+      recognition.onerror = (e) => {
+         if (e.error === 'not-allowed') setError("Microphone access denied.");
+         setStatus('error');
       };
 
       recognition.onend = () => { 
@@ -157,82 +171,217 @@ export default function App() {
     setLiveFr('');
   };
 
+  const clearHistory = () => {
+    if (confirm("Clear all translation history?")) setSegments([]);
+  };
+
   return (
-    <div className="flex flex-col h-screen bg-black text-white font-sans overflow-hidden">
-      <header className="px-10 py-6 border-b border-white/10 flex justify-between items-center bg-[#050505] shrink-0">
+    <div className="flex flex-col h-screen bg-[#050505] text-zinc-100 font-sans overflow-hidden selection:bg-indigo-500/30">
+      {/* Dynamic Background Effect */}
+      <div className="absolute inset-0 overflow-hidden pointer-events-none opacity-20">
+         <div className="absolute top-[-10%] left-[-10%] w-[40%] h-[40%] bg-indigo-600/30 blur-[120px] rounded-full animate-pulse" />
+         <div className="absolute bottom-[-10%] right-[-10%] w-[40%] h-[40%] bg-blue-600/20 blur-[120px] rounded-full" />
+      </div>
+
+      <header className="relative z-10 px-8 py-5 flex justify-between items-center border-b border-white/5 bg-black/40 backdrop-blur-xl shrink-0">
         <div className="flex items-center gap-4">
-          {status === 'reconnecting' ? (
-            <RefreshCw className="text-amber-500 w-6 h-6 animate-spin" />
-          ) : (
-            <Zap className="text-indigo-500 fill-indigo-500 w-6 h-6" />
-          )}
-          <h1 className="text-xl font-black uppercase tracking-tighter">
-            {status === 'reconnecting' ? 'Reconnect...' : 'TurboTranslator'}
-          </h1>
+          <div className="relative">
+            {status === 'listening' && (
+              <span className="absolute -inset-1 bg-indigo-500 rounded-full blur opacity-40 animate-pulse" />
+            )}
+            <div className={`p-2 rounded-lg ${status === 'listening' ? 'bg-indigo-600' : 'bg-zinc-800'}`}>
+               <Zap className={`w-5 h-5 ${status === 'listening' ? 'fill-white' : ''}`} />
+            </div>
+          </div>
+          <div>
+            <h1 className="text-lg font-black tracking-tighter uppercase leading-none">Turbo Translator</h1>
+            <p className="text-[10px] text-zinc-500 font-bold tracking-widest uppercase mt-1">EN → FR • High-Speed Engine</p>
+          </div>
         </div>
-        <div className="flex gap-2">
-           <button onClick={() => setFontSize(f => f-4)} className="p-3 bg-white/5 rounded-xl hover:bg-white/10 transition-colors"><Minus className="w-5 h-5" /></button>
-           <button onClick={() => setFontSize(f => f+4)} className="p-3 bg-white/5 rounded-xl hover:bg-white/10 transition-colors"><Plus className="w-5 h-5" /></button>
+        
+        <div className="flex items-center gap-3">
+           <button onClick={clearHistory} className="p-2.5 text-zinc-500 hover:text-red-400 hover:bg-red-400/10 rounded-xl transition-all" title="Clear History">
+              <Trash2 className="w-5 h-5" />
+           </button>
+           <div className="h-6 w-px bg-white/10 mx-1" />
+           <div className="flex p-1 bg-white/5 rounded-xl border border-white/5">
+              <button onClick={() => setFontSize(f => Math.max(24, f-4))} className="px-3 py-1.5 hover:bg-white/5 rounded-lg transition-colors text-xs font-bold">A-</button>
+              <button onClick={() => setFontSize(f => Math.min(100, f+4))} className="px-3 py-1.5 hover:bg-white/5 rounded-lg transition-colors text-xs font-bold">A+</button>
+           </div>
         </div>
       </header>
 
-      <main ref={scrollRef} className="flex-1 overflow-y-auto px-10 py-10 space-y-12 scroll-smooth no-scrollbar">
-        {segments.map((s) => (
-          <div key={s.id} className="opacity-20 space-y-3 pl-8 relative">
-            <div className="absolute left-0 top-0 bottom-0 w-1 bg-white/10 rounded-full" />
-            <p className="font-bold leading-tight" style={{ fontSize: `${fontSize*0.65}px` }}>{s.fr}</p>
-            <p className="text-sm opacity-60 italic">{s.en}</p>
-          </div>
-        ))}
+      <main 
+        ref={scrollRef} 
+        onScroll={(e) => {
+          const isAtBottom = e.target.scrollHeight - e.target.scrollTop <= e.target.clientHeight + 100;
+          setIsAutoScroll(isAtBottom);
+        }}
+        className="relative z-10 flex-1 overflow-y-auto px-8 py-10 space-y-16 no-scrollbar custom-scroll-area"
+      >
+        <AnimatePresence initial={false}>
+          {segments.map((s) => (
+            <motion.div 
+              key={s.id}
+              initial={{ opacity: 0, y: 10 }}
+              animate={{ opacity: 0.25, y: 0 }}
+              transition={{ duration: 0.4 }}
+              className="group space-y-4 pl-10 relative hover:opacity-100 transition-opacity"
+            >
+              <div className="absolute left-0 top-2 bottom-2 w-1.5 bg-zinc-800 rounded-full group-hover:bg-indigo-600 transition-colors" />
+              <p className="font-bold leading-tight tracking-tight text-white" style={{ fontSize: `${fontSize*0.65}px` }}>
+                {s.fr}
+              </p>
+              <div className="flex items-center gap-3 opacity-60">
+                 <Languages className="w-4 h-4" />
+                 <p className="text-base font-medium italic">{s.en}</p>
+              </div>
+            </motion.div>
+          ))}
+        </AnimatePresence>
 
         {liveEn && (
-          <div className="space-y-6 animate-in fade-in slide-in-from-bottom-5 duration-300">
-            <p className="font-black text-indigo-400 leading-[1.1] tracking-tight" style={{ fontSize: `${fontSize}px` }}>
-               {liveFr || '...'}
-            </p>
-            <div className="flex items-center gap-3 text-white/40">
-               <Activity className="w-5 h-5 animate-pulse" />
-               <p className="text-xl italic font-medium">{liveEn}</p>
+          <motion.div 
+            initial={{ opacity: 0, scale: 0.98 }}
+            animate={{ opacity: 1, scale: 1 }}
+            className="space-y-8 pb-32"
+          >
+            <div className="space-y-4">
+               <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-indigo-500/10 border border-indigo-500/20 text-indigo-400 text-[10px] font-black uppercase tracking-widest">
+                  <Activity className="w-3 h-3 animate-pulse" />
+                  Live Translation
+               </div>
+               <p className="font-black text-indigo-100 leading-[1.05] tracking-tight selection:bg-indigo-500" style={{ fontSize: `${fontSize}px` }}>
+                  {liveFr || 'Thinking...'}
+               </p>
             </div>
-          </div>
+            
+            <div className="flex items-start gap-4 p-6 bg-white/5 rounded-3xl border border-white/5 backdrop-blur-md">
+               <div className="p-3 bg-white/10 rounded-2xl">
+                  <Volume2 className="w-6 h-6 text-indigo-400" />
+               </div>
+               <div className="flex-1">
+                  <p className="text-[10px] uppercase font-black tracking-widest text-zinc-500 mb-1">Source Audio (EN)</p>
+                  <p className="text-xl font-semibold text-zinc-300 leading-relaxed italic">"{liveEn}"</p>
+               </div>
+            </div>
+          </motion.div>
         )}
 
         {!liveEn && segments.length === 0 && (
-           <div className="h-full flex flex-col items-center justify-center opacity-5 text-center transform -translate-y-10">
-              <Mic className="w-48 h-48 mb-6" />
-              <p className="text-4xl font-extrabold uppercase tracking-widest">Awaiting Voice</p>
+           <div className="h-full flex flex-col items-center justify-center opacity-10 text-center py-20">
+              <div className="relative mb-8">
+                 <Mic className="w-32 h-32" />
+                 <div className="absolute inset-0 bg-white blur-[60px] opacity-20 rounded-full" />
+              </div>
+              <p className="text-3xl font-black uppercase tracking-[0.2em] mb-2">Awaiting Session</p>
+              <p className="text-sm font-bold tracking-widest uppercase opacity-50">Press Start to begin real-time translation</p>
            </div>
         )}
-        <div className="h-20" />
+        
+        {!isAutoScroll && segments.length > 0 && (
+           <button 
+             onClick={() => setIsAutoScroll(true)}
+             className="fixed bottom-32 left-1/2 -translate-x-1/2 z-20 px-6 py-3 bg-white text-black font-black text-xs uppercase tracking-widest rounded-full shadow-2xl flex items-center gap-2 animate-bounce hover:scale-105 transition-transform"
+           >
+             <ChevronDown className="w-4 h-4" />
+             New Content Below
+           </button>
+        )}
       </main>
 
-      <footer className="p-12 bg-[#050505] flex justify-center border-t border-white/10 shrink-0">
-        <button
-          onClick={status === 'listening' ? stopListening : startListening}
-          className={`px-20 py-7 rounded-[2rem] font-black text-2xl transition-all shadow-2xl active:scale-95 ${
-            status === 'listening' || status === 'reconnecting' 
-            ? 'bg-red-600/20 text-red-500 border-2 border-red-500/50' 
-            : 'bg-indigo-600 text-white shadow-indigo-600/30'
-          }`}
-        >
-          {status === 'reconnecting' ? 'RECONNECTING...' : status === 'listening' ? 'STOP' : 'START SESSION'}
-        </button>
+      <footer className="relative z-20 p-8 pt-4 bg-gradient-to-t from-black via-black/95 to-transparent border-t border-white/5 shrink-0">
+        <div className="max-w-xl mx-auto flex flex-col items-center gap-6">
+           <div className="flex items-center gap-8 py-2">
+              <div className="flex flex-col items-center gap-1 opacity-40">
+                 <span className="text-[8px] font-black uppercase tracking-widest">Latency</span>
+                 <span className="text-xs font-mono font-bold">~240ms</span>
+              </div>
+              <div className="w-px h-6 bg-white/10" />
+              <div className="flex flex-col items-center gap-1 opacity-40">
+                 <span className="text-[8px] font-black uppercase tracking-widest">Model</span>
+                 <span className="text-xs font-mono font-bold">Turbo-V1</span>
+              </div>
+              <div className="w-px h-6 bg-white/10" />
+              <div className="flex flex-col items-center gap-1 opacity-40">
+                 <span className="text-[8px] font-black uppercase tracking-widest">Status</span>
+                 <span className="text-xs font-mono font-bold uppercase">{status}</span>
+              </div>
+           </div>
+
+           <button
+             onClick={status === 'listening' || status === 'reconnecting' ? stopListening : startListening}
+             disabled={status === 'connecting'}
+             className={`group relative overflow-hidden px-14 py-6 rounded-[2.5rem] font-black text-xl tracking-widest uppercase transition-all shadow-2xl active:scale-95 disabled:opacity-50 ${
+               status === 'listening' || status === 'reconnecting' 
+               ? 'bg-red-500/10 text-red-500 border-2 border-red-500/50 hover:bg-red-500/20' 
+               : 'bg-indigo-600 text-white hover:bg-indigo-500 shadow-indigo-600/40 hover:shadow-indigo-600/60'
+             }`}
+           >
+             <div className="relative z-10 flex items-center gap-4">
+               {status === 'connecting' ? (
+                 <RefreshCw className="w-6 h-6 animate-spin" />
+               ) : status === 'listening' ? (
+                 <Square className="w-6 h-6 fill-current" />
+               ) : (
+                 <Mic className="w-6 h-6" />
+               )}
+               <span>
+                 {status === 'connecting' ? 'Initializing...' : 
+                  status === 'reconnecting' ? 'Restoring...' :
+                  status === 'listening' ? 'Finish Session' : 'Start Translation'}
+               </span>
+             </div>
+             {status !== 'listening' && (
+                <div className="absolute top-0 -inset-full h-full w-1/2 z-5 block transform -skew-x-12 bg-gradient-to-r from-transparent to-white/20 opacity-40 group-hover:animate-shine" />
+             )}
+           </button>
+           
+           <p className="text-[10px] text-zinc-600 font-bold uppercase tracking-widest">
+             Powered by WebSpeech & TurboCore Integration
+           </p>
+        </div>
       </footer>
 
       {error && (
-        <div className="absolute top-24 left-10 right-10 p-5 bg-red-600 rounded-2xl flex items-center gap-4 shadow-2xl animate-in slide-in-from-top-10">
-          <AlertCircle className="w-6 h-6" />
-          <p className="font-bold">{error}</p>
-        </div>
+        <motion.div 
+          initial={{ opacity: 0, y: 50 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="absolute top-24 left-8 right-8 z-50 p-5 bg-red-600 rounded-2xl flex items-center justify-between gap-4 shadow-[0_20px_50px_rgba(220,38,38,0.3)] border border-white/20"
+        >
+          <div className="flex items-center gap-4">
+             <AlertCircle className="w-6 h-6" />
+             <p className="font-bold text-sm tracking-tight">{error}</p>
+          </div>
+          <button onClick={() => setError(null)} className="p-2 hover:bg-white/10 rounded-lg">
+             <Square className="w-4 h-4 rotate-45" />
+          </button>
+        </motion.div>
       )}
 
       <style>{`
         .no-scrollbar::-webkit-scrollbar { display: none; }
         .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+        
+        @keyframes shine {
+          0% { left: -100%; }
+          100% { left: 100%; }
+        }
+        .animate-shine {
+          animation: shine 1.5s infinite;
+        }
+        
+        .custom-scroll-area {
+          scrollbar-gutter: stable;
+        }
+
+        @media (max-width: 640px) {
+           header { px-4 py-4; }
+           main { px-4 py-6; space-y-10; }
+           footer { p-6; }
+           .px-14 { px-10; }
+        }
       `}</style>
     </div>
   );
 }
-
-function Plus(props) { return <svg {...props} xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>; }
-function Minus(props) { return <svg {...props} xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><line x1="5" y1="12" x2="19" y2="12"></line></svg>; }
