@@ -1,5 +1,5 @@
 {
-  "rewrites": [
-    { "source": "/(.*)", "destination": "/web-app/$1" }
-  ]
+  "buildCommand": "cd web-app && npm install && npm run build",
+  "outputDirectory": "web-app/dist",
+  "framework": "vite"
 }
