@@ -5,8 +5,12 @@ from typing import Optional
 from fastapi import WebSocket, WebSocketDisconnect, status
 
 from app.services.translation.free_service import FreeTranslationService
+from app.services.session_manager import session_manager
 
 logger = logging.getLogger(__name__)
+
+# Global singleton for hardware/resource reuse
+translation_service = FreeTranslationService()
 
 
 async def handle_translation_session(websocket: WebSocket, token: Optional[str]) -> None:
@@ -20,8 +24,8 @@ async def handle_translation_session(websocket: WebSocket, token: Optional[str])
         await websocket.close(code=status.WS_1008_POLICY_VIOLATION, reason="Token missing")
         return
 
-    session_id = f"sess_{int(time.time())}"
-    translation_service = FreeTranslationService()
+    session = await session_manager.create()
+    session_id = session.session_id
 
     try:
         await websocket.accept()
@@ -55,4 +59,5 @@ async def handle_translation_session(websocket: WebSocket, token: Optional[str])
     except Exception as e:
         logger.error("[%s] Session error: %s", session_id, e)
     finally:
+        await session_manager.close(session_id)
         logger.info("[%s] Session closed", session_id)

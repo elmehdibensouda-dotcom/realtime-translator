@@ -18,11 +18,11 @@ async def ws_translate(
     token: Optional[str] = Query(default=None, description="JWT access token"),
 ):
     """
-    WebSocket endpoint for real-time audio → transcript → translation.
+    WebSocket endpoint for real-time text transcription → translation.
 
     Connect: wss://<host>/ws/translate?token=<jwt>
-    Send:    raw PCM bytes (16 kHz, mono, signed 16-bit little-endian)
-    Receive: JSON TranscriptEvent | ErrorEvent | StatusEvent
+    Send:    JSON {"text": "...", "is_final": bool, "seq_id": int}
+    Receive: JSON {"type": "partial"|"final", "transcript_en": "...", "translation_fr": "..."}
     """
     await handle_translation_session(websocket, token)
 
