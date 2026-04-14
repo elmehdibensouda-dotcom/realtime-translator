@@ -1,0 +1,143 @@
+name: CI/CD – RealtimeTranslator
+
+on:
+  push:
+    branches: [main, develop]
+    paths:
+      - 'realtime-translator/**'
+  pull_request:
+    branches: [main]
+    paths:
+      - 'realtime-translator/**'
+
+env:
+  REGISTRY: ghcr.io
+  IMAGE_NAME: ${{ github.repository }}/realtime-translator-backend
+
+jobs:
+  # ── Backend: lint + test ───────────────────────────────────────────────────
+  backend-test:
+    name: Backend Tests
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: realtime-translator/backend
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python 3.12
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+
+      - name: Lint (ruff)
+        run: |
+          pip install ruff
+          ruff check app/ tests/
+
+      - name: Type check (mypy)
+        run: |
+          pip install mypy types-PyJWT
+          mypy app/ --ignore-missing-imports
+
+      - name: Run tests
+        env:
+          SECRET_KEY: ci-test-secret
+          DEEPGRAM_API_KEY: ci-test-key
+          DEEPL_API_KEY: ci-test-key
+          DEBUG: "true"
+        run: pytest tests/ -v --tb=short
+
+  # ── Mobile: Flutter analyze ────────────────────────────────────────────────
+  mobile-analyze:
+    name: Flutter Analysis
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: realtime-translator/mobile
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          flutter-version: "3.24.x"
+          channel: stable
+          cache: true
+
+      - name: Get packages
+        run: flutter pub get
+
+      - name: Analyze
+        run: flutter analyze
+
+      - name: Run unit tests
+        run: flutter test
+
+  # ── Build & Push Docker image ──────────────────────────────────────────────
+  docker-build:
+    name: Build & Push Image
+    runs-on: ubuntu-latest
+    needs: [backend-test]
+    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+
+    permissions:
+      contents: read
+      packages: write
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Log in to GHCR
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Extract metadata
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
+          tags: |
+            type=sha,prefix=sha-
+            type=raw,value=latest
+
+      - name: Build and push
+        uses: docker/build-push-action@v6
+        with:
+          context: realtime-translator/backend
+          push: true
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+  # ── Deploy to production ───────────────────────────────────────────────────
+  deploy:
+    name: Deploy to Production
+    runs-on: ubuntu-latest
+    needs: [docker-build]
+    if: github.ref == 'refs/heads/main'
+    environment: production
+
+    steps:
+      - name: Deploy via SSH
+        uses: appleboy/ssh-action@v1
+        with:
+          host: ${{ secrets.PROD_HOST }}
+          username: ${{ secrets.PROD_USER }}
+          key: ${{ secrets.PROD_SSH_KEY }}
+          script: |
+            cd /opt/realtime-translator
+            docker compose pull
+            docker compose up -d --no-build
+            docker image prune -f
+            echo "✅ Deployed $(date)"

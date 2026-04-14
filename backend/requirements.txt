@@ -1,0 +1,29 @@
+# ── Core ──────────────────────────────────────────────────────────────────────
+fastapi==0.115.6
+uvicorn[standard]==0.32.1
+pydantic==2.10.4
+pydantic-settings==2.7.0
+websockets==14.1
+
+# ── Auth ──────────────────────────────────────────────────────────────────────
+PyJWT==2.10.1
+
+# ── ASR ──────────────────────────────────────────────────────────────────────
+deepgram-sdk==3.9.0
+assemblyai==0.34.0
+# google-cloud-speech==2.27.0   # uncomment for Google ASR fallback
+# openai==1.59.0                 # uncomment for Whisper fallback
+
+# ── Translation ───────────────────────────────────────────────────────────────
+deepl==1.20.0
+# google-cloud-translate==3.18.0 # uncomment for Google Translate fallback
+
+# ── HTTP ──────────────────────────────────────────────────────────────────────
+httpx==0.28.1
+aiohttp==3.11.11
+
+# ── Testing ───────────────────────────────────────────────────────────────────
+pytest==8.3.4
+pytest-asyncio==0.25.2
+pytest-mock==3.14.0
+httpx                           # already above; also used by TestClient

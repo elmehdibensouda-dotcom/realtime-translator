@@ -1,0 +1,57 @@
+name: realtime_translator
+description: Real-time English → French voice translation app
+publish_to: "none"
+version: 1.0.0+1
+
+environment:
+  sdk: ">=3.3.0 <4.0.0"
+
+dependencies:
+  flutter:
+    sdk: flutter
+  # WebSocket & networking
+  web_socket_channel: ^3.0.1
+  connectivity_plus: ^6.1.0
+  # Audio capture
+  record: ^5.1.2
+  permission_handler: ^11.3.1
+  # State management
+  flutter_riverpod: ^2.6.1
+  riverpod_annotation: ^2.6.1
+  # HTTP
+  http: ^1.2.2
+  # Storage (JWT token)
+  flutter_secure_storage: ^9.2.2
+  # UI
+  flutter_animate: ^4.5.0
+  google_fonts: ^6.2.1
+  lottie: ^3.1.2
+  # Waveform
+  audio_waveforms: ^1.0.5
+  # Utils
+  uuid: ^4.5.1
+  intl: ^0.19.0
+  logger: ^2.4.0
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^4.0.0
+  mockito: ^5.4.4
+  build_runner: ^2.4.13
+  riverpod_generator: ^2.6.1
+
+flutter:
+  uses-material-design: true
+  assets:
+    - assets/animations/
+  fonts:
+    - family: Inter
+      fonts:
+        - asset: assets/fonts/Inter-Regular.ttf
+        - asset: assets/fonts/Inter-Medium.ttf
+          weight: 500
+        - asset: assets/fonts/Inter-SemiBold.ttf
+          weight: 600
+        - asset: assets/fonts/Inter-Bold.ttf
+          weight: 700
