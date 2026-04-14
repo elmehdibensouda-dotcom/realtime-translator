@@ -1,0 +1,19 @@
+services:
+  - type: web
+    name: realtime-translator-backend
+    env: docker
+    repo: https://github.com/elmehdibensouda-dotcom/realtime-translator
+    region: frankfurt
+    plan: free
+    dockerContext: backend
+    dockerfilePath: Dockerfile
+    healthCheckPath: /health
+    envVars:
+      - key: DEBUG
+        value: "false"
+      - key: SECRET_KEY
+        generateValue: true
+      - key: ALLOWED_ORIGINS
+        value: '["*"]'
+      - key: FREE_TRANSLATION_MAX_WORKERS
+        value: "10"
