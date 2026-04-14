@@ -10,7 +10,7 @@ class Settings(BaseSettings):
     )
 
     # ── App ──────────────────────────────────────────────────────────────────
-    DEBUG: bool = False
+    DEBUG: bool = True
     SECRET_KEY: str = "change-me-in-production"
     ALLOWED_ORIGINS: List[str] = ["*"]
     ALLOWED_HOSTS: List[str] = ["*"]

@@ -48,9 +48,6 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-if not settings.DEBUG:
-    app.add_middleware(TrustedHostMiddleware, allowed_hosts=settings.ALLOWED_HOSTS)
-
 # ── Routes ───────────────────────────────────────────────────────────────────
 app.include_router(api_router)
 

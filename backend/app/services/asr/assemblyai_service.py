@@ -36,9 +36,10 @@ class AssemblyAIASRService(BaseASRService):
             logger.info("[%s] AssemblyAI session opened (id=%s)", session_id, session_opened.session_id)
 
         def on_data(transcript: aai.RealtimeTranscript):
-            nonlocal seq
             if not transcript.text:
                 return
+            logger.info("[%s] ASR: %s", session_id, transcript.text)
+            nonlocal seq
 
             seq += 1
             is_final = isinstance(transcript, aai.RealtimeFinalTranscript)

@@ -38,7 +38,10 @@ class DeepLTranslationService(BaseTranslationService):
     def _cache_key(self, text: str) -> str:
         return hashlib.sha1(text.encode()).hexdigest()
 
-    async def translate(self, text: str) -> str:
+    async def translate(self, text: str, target_lang: str = "FR") -> str:
+        if not settings.DEEPL_API_KEY or "your_deepl" in settings.DEEPL_API_KEY:
+            return f"[No DeepL Key]"
+        
         if not text.strip():
             return ""
 

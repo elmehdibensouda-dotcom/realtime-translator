@@ -6,8 +6,8 @@ class AppConstants {
 
   // ── Backend ──────────────────────────────────────────────────────────────
   // Note: Use 10.0.2.2 for Android Emulator, localhost for iOS Simulator
-  static const String wsBaseUrl = 'ws://localhost:8001/ws/translate';
-  static const String apiBaseUrl = 'http://localhost:8001';
+  static const String wsBaseUrl = 'ws://localhost:8080/ws/translate';
+  static const String apiBaseUrl = 'http://localhost:8080';
   static const String authTokenEndpoint = '/auth/token';
 
   // ── Audio ────────────────────────────────────────────────────────────────
