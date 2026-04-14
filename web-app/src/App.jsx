@@ -2,8 +2,8 @@ import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Mic, Square, Languages, AlertCircle, Activity, Zap, RefreshCw } from 'lucide-react';
 
-const WS_URL = 'ws://localhost:8080/ws/translate';
-const AUTH_URL = 'http://localhost:8080/auth/token';
+const WS_URL = import.meta.env.VITE_WS_URL || 'ws://localhost:8000/ws/translate';
+const AUTH_URL = import.meta.env.VITE_AUTH_URL || 'http://localhost:8000/auth/token';
 
 export default function App() {
   const [status, setStatus] = useState('idle'); // idle | connecting | listening | reconnecting | error

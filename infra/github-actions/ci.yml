@@ -21,7 +21,7 @@ jobs:
     runs-on: ubuntu-latest
     defaults:
       run:
-        working-directory: realtime-translator/backend
+        working-directory: backend
 
     steps:
       - uses: actions/checkout@v4
@@ -59,7 +59,7 @@ jobs:
     runs-on: ubuntu-latest
     defaults:
       run:
-        working-directory: realtime-translator/mobile
+        working-directory: mobile
 
     steps:
       - uses: actions/checkout@v4
@@ -113,7 +113,7 @@ jobs:
       - name: Build and push
         uses: docker/build-push-action@v6
         with:
-          context: realtime-translator/backend
+          context: backend
           push: true
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
@@ -136,7 +136,7 @@ jobs:
           username: ${{ secrets.PROD_USER }}
           key: ${{ secrets.PROD_SSH_KEY }}
           script: |
-            cd /opt/realtime-translator
+            cd ~/realtime-translator
             docker compose pull
             docker compose up -d --no-build
             docker image prune -f

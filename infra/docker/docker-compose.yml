@@ -4,7 +4,7 @@ services:
   # ── Backend ────────────────────────────────────────────────────────────────
   backend:
     build:
-      context: ./backend
+      context: ../../backend
       dockerfile: Dockerfile
     image: realtime-translator-backend:latest
     container_name: rt_backend
@@ -12,7 +12,7 @@ services:
     ports:
       - "8000:8000"
     env_file:
-      - ./backend/.env
+      - ../../backend/config.env
     environment:
       - DEBUG=false
       - MAX_CONCURRENT_SESSIONS=500
