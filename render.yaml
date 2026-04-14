@@ -6,7 +6,7 @@ services:
     region: frankfurt
     plan: free
     dockerContext: backend
-    dockerfilePath: Dockerfile
+    dockerfilePath: backend/Dockerfile
     healthCheckPath: /health
     envVars:
       - key: DEBUG
