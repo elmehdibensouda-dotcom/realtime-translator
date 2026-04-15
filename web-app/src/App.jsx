@@ -171,8 +171,6 @@ export default function App() {
       // THEN CONNECT TO SERVER
       await connectWS();
 
-      recognition.start();
-
     } catch (err) {
       console.error("Start error:", err);
       setError(err.message);
