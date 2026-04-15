@@ -37,8 +37,8 @@ export default function App() {
     const wordCount = text.split(' ').length;
     const lastWordCount = lastTranslatedText.current.split(' ').length;
     
-    // Throttle interim updates to avoid flickering, but allow final always
-    if (!is_final && (wordCount - lastWordCount) < 3) return;
+    // Throttle interim updates – lowered to 2 words for maximum responsiveness
+    if (!is_final && (wordCount - lastWordCount) < 2) return;
 
     lastTranslatedText.current = text;
     const seqId = ++lastSeqRef.current;
