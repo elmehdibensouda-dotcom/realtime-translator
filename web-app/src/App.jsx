@@ -122,8 +122,6 @@ export default function App() {
         throw new Error("Speech Recognition not supported in this browser. Try Chrome.");
       }
 
-      await connectWS();
-
       const recognition = new SpeechRecognition();
       recognition.lang = 'en-US';
       recognition.continuous = true;
@@ -166,6 +164,12 @@ export default function App() {
           recognition.start(); 
         }
       };
+
+      // START RECOGNITION IMMEDIATELY (prevents browser security block)
+      recognition.start();
+
+      // THEN CONNECT TO SERVER
+      await connectWS();
 
       recognition.start();
 
