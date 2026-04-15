@@ -95,7 +95,8 @@ export default function App() {
       ws.onerror = () => { /* Handled by onclose */ };
 
     } catch (err) {
-      setError("Server connection failed. Check if backend is running.");
+      console.error("Connection error:", err);
+      setError(`Connection failed: ${err.message}. Ensure backend is live at ${WS_URL}`);
       setStatus('error');
     }
   }, [status]);
@@ -107,7 +108,7 @@ export default function App() {
       setTimeout(connectWS, 2000 * retryCount.current);
     } else {
       setStatus('error');
-      setError("Connection lost. Please refresh.");
+      setError("Connection lost. Please check your internet and refresh.");
     }
   };
 
@@ -115,18 +116,24 @@ export default function App() {
     try {
       setError(null);
       setStatus('connecting');
-      await connectWS();
 
       const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
       if (!SpeechRecognition) {
-        throw new Error("Your browser does not support Speech Recognition.");
+        throw new Error("Speech Recognition not supported in this browser. Try Chrome.");
       }
+
+      await connectWS();
 
       const recognition = new SpeechRecognition();
       recognition.lang = 'en-US';
       recognition.continuous = true;
       recognition.interimResults = true;
       recognitionRef.current = recognition;
+
+      recognition.onstart = () => {
+        console.log("Speech recognition started");
+        setStatus('listening');
+      };
 
       recognition.onresult = (event) => {
         let interim = '';
@@ -145,19 +152,28 @@ export default function App() {
       };
 
       recognition.onerror = (e) => {
-         if (e.error === 'not-allowed') setError("Microphone access denied.");
+         console.error("Speech Recognition Error:", e.error);
+         if (e.error === 'not-allowed') setError("Microphone access denied. Please enable it in browser settings.");
+         else if (e.error === 'network') setError("Network error affecting speech recognition.");
+         else setError(`Speech error: ${e.error}`);
          setStatus('error');
+         stopListening();
       };
 
       recognition.onend = () => { 
-        if (recognitionRef.current) recognition.start(); 
+        if (recognitionRef.current) {
+          console.log("Speech recognition ended unexpectedly, restarting...");
+          recognition.start(); 
+        }
       };
 
       recognition.start();
 
     } catch (err) {
+      console.error("Start error:", err);
       setError(err.message);
       setStatus('error');
+      stopListening();
     }
   };
 
