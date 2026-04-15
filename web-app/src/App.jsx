@@ -151,6 +151,7 @@ export default function App() {
 
       recognition.onerror = (e) => {
          console.error("Speech Recognition Error:", e.error);
+         if (e.error === 'no-speech') return; // Ignore silent pauses
          if (e.error === 'not-allowed') setError("Microphone access denied. Please enable it in browser settings.");
          else if (e.error === 'network') setError("Network error affecting speech recognition.");
          else setError(`Speech error: ${e.error}`);
